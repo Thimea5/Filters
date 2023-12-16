@@ -83,6 +83,45 @@ def onSliderChangeContraste(value):
     global ContrastValue
     ContrastValue=value
 
+def detect_white_background(image):
+    # Calculer la moyenne des valeurs de pixels dans l'image
+    average_brightness = np.mean(image)
+    
+    # Ajuster le seuil en conséquence (expérimentez avec cette valeur)
+    brightness_threshold = 100
+    
+    # Vérifier si la moyenne dépasse le seuil
+    if average_brightness > brightness_threshold:
+        print("Fond clair détecté")
+    return image
+
+def replace_white_background(image):
+    replacement_image = "./images/bg_plage.jpg"  # Définissez le chemin de votre image de remplacement
+    # Calculer la moyenne des valeurs de pixels dans l'image
+    average_brightness = np.mean(image)
+    
+    # Ajuster le seuil en conséquence (expérimentez avec cette valeur)
+    brightness_threshold = 110
+    
+    # Vérifier si la moyenne dépasse le seuil
+    if average_brightness > brightness_threshold:
+        print("Fond clair détecté")
+        # Créer un masque pour les parties blanches de l'image
+        white_mask = cv.inRange(image, (200, 200, 200), (255, 255, 255))
+        
+        # Charger l'image de remplacement
+        replacement_img = cv.imread(replacement_image, cv.IMREAD_UNCHANGED)
+        
+        # Redimensionner l'image de remplacement pour correspondre à la taille de l'image d'origine
+        replacement_img = cv.resize(replacement_img, (image.shape[1], image.shape[0]))
+        
+        # Utiliser un masque inversé pour remplacer uniquement les parties blanches
+        result = cv.bitwise_and(image, image, mask=cv.bitwise_not(white_mask))
+        result += cv.bitwise_and(replacement_img, replacement_img, mask=white_mask)
+        
+        return result
+
+    return image
 
 def getWebcamVideo(width, height):
 
@@ -128,6 +167,7 @@ def getWebcamVideo(width, height):
     while True:
         returnValue, webcamImage = videoWebcam.read()
         faces = face_cascade.detectMultiScale(webcamImage, 1.1, 4)
+        webcamImage = replace_white_background(webcamImage)
 
         for (xf,yf,wf,hf) in faces:
             i=0
