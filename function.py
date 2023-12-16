@@ -8,12 +8,26 @@ import tkinter as tk
 closeWindow = False
 activeSunglasses = False
 activeHat = False
+luminositeValue = 0
+ContrastValue = 100
 
 # Load the cascade
 face_cascade = cv.CascadeClassifier('./haarcascades/haarcascade_frontalface_alt.xml')
 eye_cascade = cv.CascadeClassifier('./haarcascades/haarcascade_eye_tree_eyeglasses.xml')
 sunglasses = cv.imread('./images/sunglasses.png', cv.IMREAD_UNCHANGED)
-hat = cv.imread('./images/hat.png', cv.IMREAD_UNCHANGED)
+hat = cv.imread('./images/hat2.png', cv.IMREAD_UNCHANGED)
+
+def ajuster_luminosite_contraste(image, luminosite, contraste):
+    # Convertir l'image en espace de couleur HSV
+    hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+    # Ajuster la luminosité et le contraste
+    contraste = float(contraste) / 100
+    hsv[:, :, 2] = cv.addWeighted(hsv[:, :, 2], float(contraste), 0, 0, float(luminosite))
+    # Convertir l'image de nouveau en espace de couleur BGR
+    nouvelle_image = cv.cvtColor(hsv, cv.COLOR_HSV2BGR)
+    return nouvelle_image
+
+
 
 def tracer_rectangle(image, point1, point2, couleur=(0, 255, 0)):
     # Copier l'image pour éviter de modifier l'original
@@ -61,6 +75,15 @@ def insideImg(webcamImage,point1,point2,img):
         resized_hat[:, :, c] * mask)
     return webcamImage
 
+def onSliderChangeLuminosity(value):
+    global luminositeValue
+    luminositeValue=value
+
+def onSliderChangeContraste(value):
+    global ContrastValue
+    ContrastValue=value
+
+
 def getWebcamVideo(width, height):
 
     videoWebcam = cv.VideoCapture(0)
@@ -70,20 +93,36 @@ def getWebcamVideo(width, height):
     # Créer une fenêtre Tkinter
     window = tk.Tk()
     window.protocol("WM_DELETE_WINDOW", closeWindowF)
-    window.title("programme vidéo")
+    window.configure(bg="#201c1c")
+    window.title("Filtre vidéo")
+    window.geometry(str(width) + 'x' + str(height))
+
+    # Texte
+    label = tk.Label(window, text="Paramètres :")
+    label.place(x=650, y=10)
     
-    # Création de la case à cocher
+    # Créations des cases à cocher
     checkbox_var_sunglasses = tk.BooleanVar()
     checkbox = tk.Checkbutton(window, text="Lunettes de soleil", variable=checkbox_var_sunglasses, command=lambda: on_checkbox_checked_sunglasses(checkbox_var_sunglasses))
-    checkbox.pack(side="right",pady=0, padx=200)
-
+    checkbox.place(x=650, y=30)
     checkbox_var_hat = tk.BooleanVar()
     checkboxHat = tk.Checkbutton(window, text="Chapeau", variable=checkbox_var_hat, command=lambda: on_checkbox_checked_hat(checkbox_var_hat))
-    checkboxHat.pack(side="right",pady=0, padx=100)
+    checkboxHat.place(x=650, y=50)
+
+    # Création de boutons de défilement (slider)
+    sliderLuminosity = tk.Scale(window, from_=0, to=100, orient=tk.HORIZONTAL, command=onSliderChangeLuminosity)
+    sliderLuminosity.place(x=650, y=110)
+    label = tk.Label(window, text="Luminosité")
+    label.place(x=650, y=90)
+
+    sliderContraste = tk.Scale(window, from_=0, to=200, orient=tk.HORIZONTAL, command=onSliderChangeContraste)
+    sliderContraste.place(x=650, y=170)
+    label = tk.Label(window, text="Contraste")
+    label.place(x=650, y=150)
 
     # Créer un canevas Tkinter pour afficher l'image
-    canvas = tk.Canvas(window, width=width, height=height)
-    canvas.pack()
+    canvas = tk.Canvas(window, width=640, height=480)
+    canvas.place(x=0, y=0)
 
     # On fait une boucle infinie pour faire la capture en temps réel
     while True:
@@ -92,25 +131,27 @@ def getWebcamVideo(width, height):
 
         for (xf,yf,wf,hf) in faces:
             i=0
-            webcamImage = cv.ellipse(webcamImage, (xf + int(wf*0.5), yf + int(hf*0.5)), (int(wf*0.5),int(hf*0.5)), 0,0,360,(255, 0, 255), 4)
+            #webcamImage = cv.ellipse(webcamImage, (xf + int(wf*0.5), yf + int(hf*0.5)), (int(wf*0.5),int(hf*0.5)), 0,0,360,(255, 0, 255), 4)
             # Option pour les lunettes de soleil
             if (activeSunglasses == True):
                 point1 = (xf+15,yf+int(0.25*hf))
                 point2 = (xf+wf-15,yf+hf-int(0.45*hf))
                 try:
                     webcamImage = insideImg(webcamImage,point1,point2,sunglasses)
-                    webcamImage = tracer_rectangle(webcamImage, point1, point2, couleur=(0, 255, 0))
+                    #webcamImage = tracer_rectangle(webcamImage, point1, point2, couleur=(0, 255, 0))
                 except Exception as e:
                     print(f"Une erreur s'est produite : {e}")
             # Option pour le chapeau
             if (activeHat == True):
-                point1 = (xf,yf-int(0.40*hf))
-                point2 = (xf+wf,yf+hf-int(0.95*hf))
+                point1 = (xf-15,yf-int(0.60*hf))
+                point2 = (xf+wf+15,yf+hf-int(0.80*hf))
                 try:
                     webcamImage = insideImg(webcamImage,point1,point2,hat)
-                    webcamImage = tracer_rectangle(webcamImage, point1, point2, couleur=(0, 255, 0))
+                    #webcamImage = tracer_rectangle(webcamImage, point1, point2, couleur=(0, 255, 0))
                 except Exception as e:
                     print(f"Une erreur s'est produite : {e}")
+            # Option luminosité :
+            webcamImage = ajuster_luminosite_contraste(webcamImage,luminositeValue,ContrastValue)
 
         # Convertir l'image pour Tkinter
         img_tk = convert_image_for_tkinter(webcamImage)
