@@ -8,6 +8,7 @@ import tkinter as tk
 closeWindow = False
 activeSunglasses = False
 activeHat = False
+activebgplage = False
 luminositeValue = 0
 ContrastValue = 100
 
@@ -65,6 +66,12 @@ def on_checkbox_checked_hat(checkbox_var):
     else:
         activeHat = False
 
+def on_checkbox_checked_bgplage(checkbox_var):
+    global activebgplage
+    if checkbox_var.get():
+        activebgplage = True
+    else:
+        activebgplage = False
 
 def insideImg(webcamImage,point1,point2,img):
     resized_hat = cv.resize(img, (point2[0] - point1[0], point2[1] - point1[1])) 
@@ -129,6 +136,7 @@ def getWebcamVideo(width, height):
     point1 = (0,0)
     point2 = (0,0)
 
+    width += 80
     # Créer une fenêtre Tkinter
     window = tk.Tk()
     window.protocol("WM_DELETE_WINDOW", closeWindowF)
@@ -159,6 +167,14 @@ def getWebcamVideo(width, height):
     label = tk.Label(window, text="Contraste")
     label.place(x=650, y=150)
 
+    labelbg = tk.Label(window, text="Fond (un seul à la fois) :")
+    labelinfo = tk.Label(window, text="Sur un fond clair ou derrière une fenêtre")
+    labelinfo.place(x=650, y=240)
+    labelbg.place(x=650, y=220)
+    checkbox_var_bgplage = tk.BooleanVar()
+    checkboxbgplage = tk.Checkbutton(window, text="Plage", variable=checkbox_var_bgplage, command=lambda: on_checkbox_checked_bgplage(checkbox_var_bgplage))
+    checkboxbgplage.place(x=650, y=260)
+
     # Créer un canevas Tkinter pour afficher l'image
     canvas = tk.Canvas(window, width=640, height=480)
     canvas.place(x=0, y=0)
@@ -167,7 +183,13 @@ def getWebcamVideo(width, height):
     while True:
         returnValue, webcamImage = videoWebcam.read()
         faces = face_cascade.detectMultiScale(webcamImage, 1.1, 4)
-        webcamImage = replace_white_background(webcamImage)
+
+        #Option fond plage
+        if(activebgplage == True):
+            try:
+                webcamImage = replace_white_background(webcamImage)
+            except Exception as e:
+                print(f"Une erreur s'est produite : {e}")
 
         for (xf,yf,wf,hf) in faces:
             i=0
