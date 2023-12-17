@@ -9,14 +9,17 @@ closeWindow = False
 activeSunglasses = False
 activeHat = False
 activebgplage = False
+acitveMouth = False
 luminositeValue = 0
 ContrastValue = 100
 
 # Load the cascade
 face_cascade = cv.CascadeClassifier('./haarcascades/haarcascade_frontalface_alt.xml')
 eye_cascade = cv.CascadeClassifier('./haarcascades/haarcascade_eye_tree_eyeglasses.xml')
+mouth_cascade = cv.CascadeClassifier('./haarcascades/mouth.xml')
 sunglasses = cv.imread('./images/sunglasses.png', cv.IMREAD_UNCHANGED)
 hat = cv.imread('./images/hat2.png', cv.IMREAD_UNCHANGED)
+mustache = cv.imread('./images/moustache.png', cv.IMREAD_UNCHANGED)
 
 def ajuster_luminosite_contraste(image, luminosite, contraste):
     # Convertir l'image en espace de couleur HSV
@@ -28,15 +31,12 @@ def ajuster_luminosite_contraste(image, luminosite, contraste):
     nouvelle_image = cv.cvtColor(hsv, cv.COLOR_HSV2BGR)
     return nouvelle_image
 
-
-
 def tracer_rectangle(image, point1, point2, couleur=(0, 255, 0)):
     # Copier l'image pour éviter de modifier l'original
     img_rect = image.copy()
     # Tracer le rectangle à partir des deux points
     cv.rectangle(img_rect, point1, point2, couleur)
     return img_rect
-
 
 def convert_image_for_tkinter(image):
     # Convertir l'image OpenCV en format RGB pour Tkinter
@@ -45,11 +45,9 @@ def convert_image_for_tkinter(image):
     image = Image.fromarray(image)
     return ImageTk.PhotoImage(image)
 
-
 def closeWindowF():
     global closeWindow
     closeWindow = True
-
 
 def on_checkbox_checked_sunglasses(checkbox_var):
     global activeSunglasses
@@ -57,7 +55,6 @@ def on_checkbox_checked_sunglasses(checkbox_var):
         activeSunglasses = True
     else:
         activeSunglasses = False
-
 
 def on_checkbox_checked_hat(checkbox_var):
     global activeHat
@@ -72,6 +69,13 @@ def on_checkbox_checked_bgplage(checkbox_var):
         activebgplage = True
     else:
         activebgplage = False
+
+def on_checkbox_checked_mouth(checkbox_var):
+    global acitveMouth
+    if checkbox_var.get():
+        acitveMouth = True
+    else:
+        acitveMouth = False
 
 def insideImg(webcamImage,point1,point2,img):
     resized_hat = cv.resize(img, (point2[0] - point1[0], point2[1] - point1[1])) 
@@ -155,25 +159,28 @@ def getWebcamVideo(width, height):
     checkbox_var_hat = tk.BooleanVar()
     checkboxHat = tk.Checkbutton(window, text="Chapeau", variable=checkbox_var_hat, command=lambda: on_checkbox_checked_hat(checkbox_var_hat))
     checkboxHat.place(x=650, y=50)
+    checkbox_var_mouth = tk.BooleanVar()
+    checkboxMouth = tk.Checkbutton(window, text="Moustache (ne marche pas très bien)", variable=checkbox_var_mouth, command=lambda: on_checkbox_checked_mouth(checkbox_var_mouth))
+    checkboxMouth.place(x=650, y=70)
+    labelbg = tk.Label(window, text="Fond (un seul à la fois) :")
+    labelinfo = tk.Label(window, text="Sur un fond clair (blanc) ou derrière une fenêtre (pièce lumineuse)")
+    labelinfo.place(x=650, y=300)
+    labelbg.place(x=650, y=280)
+    checkbox_var_bgplage = tk.BooleanVar()
+    checkboxbgplage = tk.Checkbutton(window, text="Plage", variable=checkbox_var_bgplage, command=lambda: on_checkbox_checked_bgplage(checkbox_var_bgplage))
+    checkboxbgplage.place(x=650, y=320)
 
     # Création de boutons de défilement (slider)
     sliderLuminosity = tk.Scale(window, from_=0, to=100, orient=tk.HORIZONTAL, command=onSliderChangeLuminosity)
-    sliderLuminosity.place(x=650, y=110)
+    sliderLuminosity.place(x=650, y=170)
     label = tk.Label(window, text="Luminosité")
-    label.place(x=650, y=90)
-
-    sliderContraste = tk.Scale(window, from_=0, to=200, orient=tk.HORIZONTAL, command=onSliderChangeContraste)
-    sliderContraste.place(x=650, y=170)
-    label = tk.Label(window, text="Contraste")
     label.place(x=650, y=150)
 
-    labelbg = tk.Label(window, text="Fond (un seul à la fois) :")
-    labelinfo = tk.Label(window, text="Sur un fond clair ou derrière une fenêtre")
-    labelinfo.place(x=650, y=240)
-    labelbg.place(x=650, y=220)
-    checkbox_var_bgplage = tk.BooleanVar()
-    checkboxbgplage = tk.Checkbutton(window, text="Plage", variable=checkbox_var_bgplage, command=lambda: on_checkbox_checked_bgplage(checkbox_var_bgplage))
-    checkboxbgplage.place(x=650, y=260)
+    sliderContraste = tk.Scale(window, from_=0, to=200, orient=tk.HORIZONTAL, command=onSliderChangeContraste)
+    sliderContraste.place(x=650, y=230)
+    label = tk.Label(window, text="Contraste")
+    label.place(x=650, y=210)
+
 
     # Créer un canevas Tkinter pour afficher l'image
     canvas = tk.Canvas(window, width=640, height=480)
@@ -183,6 +190,7 @@ def getWebcamVideo(width, height):
     while True:
         returnValue, webcamImage = videoWebcam.read()
         faces = face_cascade.detectMultiScale(webcamImage, 1.1, 4)
+        mouth = mouth_cascade.detectMultiScale(webcamImage, 1.7, 11)
 
         #Option fond plage
         if(activebgplage == True):
@@ -212,8 +220,18 @@ def getWebcamVideo(width, height):
                     #webcamImage = tracer_rectangle(webcamImage, point1, point2, couleur=(0, 255, 0))
                 except Exception as e:
                     print(f"Une erreur s'est produite : {e}")
-            # Option luminosité :
-            webcamImage = ajuster_luminosite_contraste(webcamImage,luminositeValue,ContrastValue)
+        
+            for (x,y,w,h) in mouth:
+                # Option pour la moustache
+                if (acitveMouth == True):
+                    print("moustache acitve")
+                    point1 = (x,y)
+                    point2 = (x+w,y+h)
+                    webcamImage = insideImg(webcamImage,point1,point2,mustache)
+                    #webcamImage = cv.rectangle(webcamImage, (x,y), (x+w,y+h), (0,255,0), 3)
+
+        # Option luminosité :
+        webcamImage = ajuster_luminosite_contraste(webcamImage,luminositeValue,ContrastValue)
 
         # Convertir l'image pour Tkinter
         img_tk = convert_image_for_tkinter(webcamImage)
